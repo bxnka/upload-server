@@ -1,17 +1,20 @@
-// server.js
-const cors = require('cors');
-app.use(cors({
-  origin: 'https://zonablitz.ru', // сюда подставь адрес сайта с хостинга
-  methods: ['GET', 'POST'],
-
-
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Укажи сюда домен, с которого будет идти запрос (твой сайт)
+const allowedOrigin = 'https://zonablitz.ru'; // <-- замени на свой домен!
+
+// Включаем CORS для фронтенда
+app.use(cors({
+  origin: allowedOrigin,
+  methods: ['GET', 'POST'],
+}));
 
 // Гарантируем, что папка для загрузок существует
 const uploadDir = path.join(__dirname, 'pending_uploads');
@@ -36,10 +39,10 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB
 });
 
-app.use(express.static('public')); // отдаёт HTML и JS из public/
+app.use(express.static('public'));
 app.use(express.json());
 
-// Получение формы (если зайдёшь на /)
+// Страница формы
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'biba.html'));
 });
@@ -64,6 +67,15 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.status(200).send('Файл принят на модерацию');
 });
 
+// Вывод списка загруженных файлов (для отладки)
+app.get('/files', (req, res) => {
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) {
+      return res.status(500).send('Ошибка чтения папки');
+    }
+    res.json(files);
+  });
+});
 
 // Запуск сервера
 app.listen(PORT, '0.0.0.0', () => {
