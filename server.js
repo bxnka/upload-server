@@ -1,26 +1,26 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const { google } = require('googleapis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const KEYFILEPATH = path.join(__dirname, 'credentials.json');
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
-
-// ID папки на Google Диске (в которую грузить файлы)
+// ID папки Google Диска для загрузки файлов (замени на свой)
 const FOLDER_ID = '1BWGkqwOAhjb6paPVxtx5is1DaqaYu58h?hl=ru';
 
+// Читаем credentials из переменной окружения
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+
 const auth = new google.auth.GoogleAuth({
-  keyFile: KEYFILEPATH,
-  scopes: SCOPES,
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
 });
 
 const driveService = google.drive({ version: 'v3', auth });
 
-// Настройка multer - временная папка для загрузки локально
+// Настройка multer для временного хранения загруженных файлов
 const upload = multer({ dest: 'temp_uploads/' });
 
 app.use(express.json());
@@ -43,7 +43,7 @@ async function uploadFileToDrive(filePath, fileName) {
   return response.data.id;
 }
 
-// Маршрут загрузки файла
+// Маршрут для загрузки файла
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
@@ -59,7 +59,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     // Загружаем файл на Google Диск
     const fileId = await uploadFileToDrive(file.path, file.originalname);
 
-    // Удаляем локальный временный файл
+    // Удаляем временный файл
     fs.unlinkSync(file.path);
 
     console.log('Файл загружен на Google Диск с ID:', fileId);
