@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Реплеи</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    background-color: #000;
+    color: #fff;
+  }
+
+  /* Верхняя панель */
+  .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px 20px;
+    border-bottom: 1px solid #222;
+  }
+  .upload-btn {
+    background: white;
+    color: black;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s;
+  }
+  .upload-btn:hover { background: #ddd; }
+  .upload-btn span { font-size: 18px; font-weight: bold; }
+
+  /* Галерея */
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 20px;
+  }
+  .video-card {
+    cursor: pointer;
+    background: #0a0a0a;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 5px rgba(0,0,0,0.4);
+    transition: transform 0.2s;
+  }
+  .video-card:hover { transform: scale(1.02); }
+  .video-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
+  }
+  .video-info {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .tag {
+    display: inline-block;
+    background: white;
+    color: black;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin: 2px 4px 4px 0;
+    font-size: 12px;
+  }
+  @media (max-width: 1024px) {
+    .video-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .video-grid { grid-template-columns: 1fr; }
+    .tag { display: block; margin: 4px 0; }
+  }
+
+  /* Модалки */
+  .modal {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s ease;
+  }
+  .modal.show { opacity: 1; pointer-events: auto; }
+  .modal-content {
+    background: #111;
+    padding: 20px;
+    border-radius: 6px;
+    max-width: 800px;
+    width: 90%;
+    text-align: center;
+    animation: fadeInUp 0.3s ease;
+  }
+  .modal video {
+    width: 100%;
+    max-height: 70vh;
+    background: black;
+  }
+  .download-btn {
+    margin-top: 15px;
+    display: inline-block;
+    padding: 10px 16px;
+    background: white;
+    color: black;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .download-btn:hover { background: #ddd; }
+  .close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 30px;
+    cursor: pointer;
+    color: #888;
+    transition: color 0.2s;
+  }
+  .close:hover { color: white; }
+
+  /* Форма */
+  .upload-form label {
+    display: block;
+    text-align: left;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #ccc;
+  }
+  .upload-form input, .upload-form select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    border: none;
+    background: #222;
+    color: #fff;
+  }
+  .upload-form button {
+    background: white;
+    color: black;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .upload-form button:hover { background: #ddd; }
+
+  @keyframes fadeInUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <button class="upload-btn" id="openUpload"><span>+</span> Загрузить реплей</button>
+</div>
+
+<!-- Галерея -->
+<div class="video-grid" id="videoGallery">
+  <div class="video-card" data-video="sample1.mp4" data-replay="replay1.zip" data-poster="preview1.jpg">
+    <img src="7PITCA.png" alt="preview" class="video-thumb">
+    <div class="video-info">
+      <span class="tag">Команда: RedFox</span>
+      <span class="tag">Ник: PlayerOne</span>
+      <span class="tag">Дивизион: Gold</span>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка плеера -->
+<div class="modal" id="videoModal">
+  <span class="close" id="closeModal">&times;</span>
+  <div class="modal-content">
+    <video id="modalVideo" controls></video>
+    <a id="downloadLink" class="download-btn" download>Скачать реплей</a>
+  </div>
+</div>
+
+<!-- Модалка загрузки -->
+<div class="modal" id="uploadModal">
+  <span class="close" id="closeUpload">&times;</span>
+  <div class="modal-content" style="max-width: 400px; padding: 15px; text-align: left;">
+    <h3 style="margin-top: 0;">Загрузить реплей</h3>
+    <form class="upload-form" id="replayForm" enctype="multipart/form-data">
+      <label style="font-size: 13px;">Команда</label>
+      <input type="text" name="team" required style="width: 100%; padding: 6px; font-size: 13px; margin-bottom: 8px;">
+
+      <label style="font-size: 13px;">Ник</label>
+      <input type="text" name="nick" required style="width: 100%; padding: 6px; font-size: 13px; margin-bottom: 8px;">
+
+      <label style="font-size: 13px;">Дивизион</label>
+      <select name="division" required style="width: 100%; padding: 6px; font-size: 13px; margin-bottom: 8px;">
+        <option value="">Выберите...</option>
+        <option>Хардкор</option>
+        <option>Тру</option>
+        <option>Лайт</option>
+      </select>
+
+      <label style="font-size: 13px;">Файл реплея</label>
+      <input type="file" name="file" accept=".tbreplay" required style="margin-bottom: 10px;">
+
+      <button type="submit" style="width: 100%; padding: 8px; font-size: 14px; font-weight: bold; background: white; color: black; border: none; border-radius: 4px; cursor: pointer;">
+        Отправить
+      </button>
+    </form>
+    <p style="font-size: 12px; color: #aaa; margin-top: 10px; text-align: center;">
+      Если ваш реплей не добавили за 24 часа, то он не будет добавлен
+    </p>
+  </div>
+</div>
+
+<script>
+  const videoModal = document.getElementById("videoModal");
+  const uploadModal = document.getElementById("uploadModal");
+  const modalVideo = document.getElementById("modalVideo");
+  const downloadLink = document.getElementById("downloadLink");
+
+  // Открытие видео
+  document.querySelectorAll(".video-card").forEach(card => {
+    card.addEventListener("click", () => {
+      modalVideo.src = card.dataset.video;
+      modalVideo.poster = card.dataset.poster;
+      downloadLink.href = card.dataset.replay;
+      videoModal.classList.add("show");
+    });
+  });
+
+  function closeVideoModal() {
+    videoModal.classList.remove("show");
+    modalVideo.pause();
+    modalVideo.currentTime = 0;
+  }
+
+  document.getElementById("closeModal").onclick = closeVideoModal;
+  window.addEventListener("click", e => { if (e.target === videoModal) closeVideoModal(); });
+
+  // Открытие формы загрузки
+  document.getElementById("openUpload").addEventListener("click", () => {
+    uploadModal.classList.add("show");
+  });
+
+  function closeUploadModal() {
+    uploadModal.classList.remove("show");
+  }
+
+  document.getElementById("closeUpload").onclick = closeUploadModal;
+  window.addEventListener("click", e => { if (e.target === uploadModal) closeUploadModal(); });
+
+  // Закрытие по ESC
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      closeVideoModal();
+      closeUploadModal();
+    }
+  });
+
+  // Отправка формы на сервер
+  document.getElementById("replayForm").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    try {
+      const res = await fetch("/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      if (res.ok) {
+        alert("Файл успешно отправлен на сервер!");
+        form.reset();
+        closeUploadModal();
+      } else {
+        alert("Ошибка при отправке: " + await res.text());
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Произошла ошибка при загрузке файла.");
+    }
+  });
+</script>
+
+</body>
+</html>
