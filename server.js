@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ID папки Google Диска для загрузки файлов (замени на свой)
-const FOLDER_ID = '1BWGkqwOAhjb6paPVxtx5is1DaqaYu58h?hl=ru';
+const FOLDER_ID = '1BWGkqwOAhjb6paPVxtx5is1DaqaYu58h';
 
 // Читаем credentials из переменной окружения
 const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
