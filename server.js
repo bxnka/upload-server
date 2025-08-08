@@ -34,6 +34,16 @@ const storage = multer.diskStorage({
   }
 });
 
+app.get('/download/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(uploadDir, filename);
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      return res.status(404).send('Файл не найден');
+    }
+    res.download(filePath);
+
 const upload = multer({
   storage: storage,
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB
