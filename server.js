@@ -2,89 +2,75 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const cors = require('cors');
+const { google } = require('googleapis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Укажи домен фронтенда, с которого разрешены запросы
-const allowedOrigin = 'https://zonablitz.ru/biba'; // <-- Заменить на твой домен
+const KEYFILEPATH = path.join(__dirname, 'credentials.json');
+const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
-app.use(cors({
-  origin: allowedOrigin,
-  methods: ['GET', 'POST'],
-}));
+// ID папки на Google Диске (в которую грузить файлы)
+const FOLDER_ID = 'ТВОЙ_GOOGLE_DRIVE_FOLDER_ID';
 
-// Папка для загрузок
-const uploadDir = path.join(__dirname, 'pending_uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Настройка multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const safeName = file.originalname.replace(/\s+/g, '_');
-    cb(null, `${timestamp}_${safeName}`);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+const auth = new google.auth.GoogleAuth({
+  keyFile: KEYFILEPATH,
+  scopes: SCOPES,
 });
 
-app.use(express.static('public'));
+const driveService = google.drive({ version: 'v3', auth });
+
+// Настройка multer - временная папка для загрузки локально
+const upload = multer({ dest: 'temp_uploads/' });
+
 app.use(express.json());
 
-// Главная страница с формой (если нужна)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'biba.html'));
-});
+// Загрузка файла на Google Диск
+async function uploadFileToDrive(filePath, fileName) {
+  const fileMetadata = {
+    name: fileName,
+    parents: [FOLDER_ID],
+  };
+  const media = {
+    body: fs.createReadStream(filePath),
+  };
 
-// Обработка загрузки файла
-app.post('/upload', upload.single('file'), (req, res) => {
-  const file = req.file;
-  const { team, nickname, division } = req.body;
+  const response = await driveService.files.create({
+    resource: fileMetadata,
+    media: media,
+    fields: 'id',
+  });
+  return response.data.id;
+}
 
-  if (!file) {
-    return res.status(400).send('Файл не загружен');
+// Маршрут загрузки файла
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    const { team, nickname, division } = req.body;
+
+    if (!file) {
+      return res.status(400).send('Файл не загружен');
+    }
+
+    console.log('Получен файл:', file.originalname);
+    console.log('Данные:', { team, nickname, division });
+
+    // Загружаем файл на Google Диск
+    const fileId = await uploadFileToDrive(file.path, file.originalname);
+
+    // Удаляем локальный временный файл
+    fs.unlinkSync(file.path);
+
+    console.log('Файл загружен на Google Диск с ID:', fileId);
+
+    res.status(200).send('Файл успешно загружен на Google Диск');
+  } catch (error) {
+    console.error('Ошибка загрузки:', error);
+    res.status(500).send('Ошибка при загрузке файла');
   }
-
-  console.log('--- Новый файл на модерацию ---');
-  console.log('Оригинальное имя:', file.originalname);
-  console.log('Сохранено как:', file.filename);
-  console.log('Команда:', team);
-  console.log('Ник:', nickname);
-  console.log('Дивизион:', division);
-  console.log('-------------------------------');
-
-  res.status(200).send('Файл принят на модерацию');
 });
 
-// Маршрут для просмотра списка файлов
-app.get('/files', (req, res) => {
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) return res.status(500).send('Ошибка чтения папки');
-    res.json(files);
-  });
-});
-
-// Маршрут для скачивания файла по имени
-app.get('/download/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(uploadDir, filename);
-
-  fs.access(filePath, fs.constants.F_OK, (err) => {
-    if (err) return res.status(404).send('Файл не найден');
-    res.download(filePath);
-  });
-});
-
-// Запуск сервера на всех интерфейсах
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
