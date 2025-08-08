@@ -1,4 +1,9 @@
 // server.js
+const cors = require('cors');
+app.use(cors({
+  origin: 'https://zonablitz.ru', // сюда подставь адрес сайта с хостинга
+  methods: ['GET', 'POST'],
+
 
 const express = require('express');
 const multer = require('multer');
