@@ -3,76 +3,39 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
-const open = require('open');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Загружаем OAuth данные из env переменных
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI || `https://zonablitz.ru/biba`;
+// ID папки Google Диска для загрузки файлов (замени на свой)
+const FOLDER_ID = 'ТВОЙ_GOOGLE_DRIVE_FOLDER_ID';
 
-// Хранение токенов (для простоты — в памяти, в продакшене — БД или файл)
-let oauth2Client;
-let oauthTokens;
+// Читаем credentials из переменной окружения
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 
-app.use(express.json());
+const auth = new google.auth.GoogleAuth({
+  credentials,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
+
+const driveService = google.drive({ version: 'v3', auth });
+
+// Настройка multer для временного хранения загруженных файлов
 const upload = multer({ dest: 'temp_uploads/' });
 
-// Создаем OAuth2 клиент
-function createOAuthClient() {
-  oauth2Client = new google.auth.OAuth2(
-    CLIENT_ID,
-    CLIENT_SECRET,
-    REDIRECT_URI
-  );
-}
-
-// Генерируем URL для авторизации пользователя
-function getAuthUrl() {
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/drive.file'],
-    prompt: 'consent',
-  });
-}
-
-// Роут для старта авторизации (можно вручную открыть браузер и перейти сюда)
-app.get('/auth', (req, res) => {
-  const url = getAuthUrl();
-  res.send(`<h1>Авторизация Google Drive</h1><a href="${url}">Нажмите чтобы авторизоваться</a>`);
-});
-
-// Callback после авторизации
-app.get('/oauth2callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) return res.status(400).send('Код авторизации не найден');
-
-  try {
-    const { tokens } = await oauth2Client.getToken(code);
-    oauthTokens = tokens;
-    oauth2Client.setCredentials(tokens);
-
-    res.send('Авторизация успешна! Можно загружать файлы.');
-  } catch (err) {
-    console.error('Ошибка при получении токена:', err);
-    res.status(500).send('Ошибка при авторизации');
-  }
-});
+app.use(express.json());
 
 // Загрузка файла на Google Диск
 async function uploadFileToDrive(filePath, fileName) {
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
   const fileMetadata = {
     name: fileName,
+    parents: [FOLDER_ID],
   };
   const media = {
     body: fs.createReadStream(filePath),
   };
 
-  const response = await drive.files.create({
+  const response = await driveService.files.create({
     resource: fileMetadata,
     media: media,
     fields: 'id',
@@ -82,13 +45,7 @@ async function uploadFileToDrive(filePath, fileName) {
 
 // Маршрут для загрузки файла
 app.post('/upload', upload.single('file'), async (req, res) => {
-  if (!oauthTokens) {
-    return res.status(401).send('Сначала авторизуйтесь: перейдите на /auth');
-  }
-
   try {
-    oauth2Client.setCredentials(oauthTokens);
-
     const file = req.file;
     const { team, nickname, division } = req.body;
 
@@ -99,8 +56,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     console.log('Получен файл:', file.originalname);
     console.log('Данные:', { team, nickname, division });
 
+    // Загружаем файл на Google Диск
     const fileId = await uploadFileToDrive(file.path, file.originalname);
 
+    // Удаляем временный файл
     fs.unlinkSync(file.path);
 
     console.log('Файл загружен на Google Диск с ID:', fileId);
@@ -113,7 +72,5 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  createOAuthClient();
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Перейдите в браузере http://localhost:${PORT}/auth для авторизации`);
+  console.log(`Server running on port ${PORT}`);
 });
