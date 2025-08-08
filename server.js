@@ -11,7 +11,7 @@ const KEYFILEPATH = path.join(__dirname, 'credentials.json');
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
 // ID папки на Google Диске (в которую грузить файлы)
-const FOLDER_ID = 'ТВОЙ_GOOGLE_DRIVE_FOLDER_ID';
+const FOLDER_ID = '1BWGkqwOAhjb6paPVxtx5is1DaqaYu58h?hl=ru';
 
 const auth = new google.auth.GoogleAuth({
   keyFile: KEYFILEPATH,
