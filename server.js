@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Укажи сюда домен, с которого будет идти запрос (твой сайт)
-const allowedOrigin = 'https://zonablitz.ru'; // <-- замени на свой домен!
+const allowedOrigin = 'https://zonablitz.ru/biba'; // <-- замени на свой домен!
 
 // Включаем CORS для фронтенда
 app.use(cors({
