@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Загружаем OAuth данные из env переменных
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI || `http://localhost:${PORT}/oauth2callback`;
+const REDIRECT_URI = process.env.REDIRECT_URI || `https://zonablitz.ru/biba`;
 
 // Хранение токенов (для простоты — в памяти, в продакшене — БД или файл)
 let oauth2Client;
